@@ -13,16 +13,29 @@ export function htmlFallbackMiddleware(
   spaFallback: boolean,
   clientEnvironment?: DevEnvironment,
 ): Connect.NextHandleFunction {
+  const normalizedRoot = path.resolve(root)
   const memoryFiles =
     clientEnvironment instanceof FullBundleDevEnvironment
       ? clientEnvironment.memoryFiles
       : undefined
 
   function checkFileExists(relativePath: string) {
+    // Ensure the path stays within the configured root directory
+    const candidatePath = path.resolve(
+      normalizedRoot,
+      '.' + relativePath,
+    )
+    if (
+      candidatePath !== normalizedRoot &&
+      !candidatePath.startsWith(normalizedRoot + path.sep)
+    ) {
+      return false
+    }
+
     return (
       memoryFiles?.has(
         relativePath.slice(1), // remove first /
-      ) ?? fs.existsSync(path.join(root, relativePath))
+      ) ?? fs.existsSync(candidatePath)
     )
   }
 
