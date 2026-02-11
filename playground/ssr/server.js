@@ -57,7 +57,7 @@ export async function createServer(
       vite && vite.ssrFixStacktrace(e)
       if (isTest) throw e
       console.log(e.stack)
-      res.status(500).end(e.stack)
+      res.status(500).end('Internal Server Error')
     }
   })
 
