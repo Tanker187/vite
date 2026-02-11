@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
+import RateLimit from 'express-rate-limit'
 
 const isTest = process.env.VITEST
 
@@ -18,6 +19,11 @@ export async function createServer(root = process.cwd(), hmrPort) {
   const htmlRoot = root
 
   const app = express()
+
+  const limiter = RateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+  })
 
   /**
    * @type {import('vite').ViteDevServer}
@@ -46,6 +52,8 @@ export async function createServer(root = process.cwd(), hmrPort) {
   })
   // use vite's connect instance as middleware
   app.use(vite.middlewares)
+
+  app.use(limiter)
 
   app.use('*all', async (req, res, next) => {
     try {
