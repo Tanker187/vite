@@ -25,6 +25,28 @@ import type { Logger } from '../logger'
 import { slash } from '../../shared/utils'
 import type { Environment } from '../environment'
 
+const JS_UNSAFE_CHARS: Record<string, string> = {
+  '<': '\\u003C',
+  '>': '\\u003E',
+  '/': '\\u002F',
+  '\\': '\\\\',
+  '\b': '\\b',
+  '\f': '\\f',
+  '\n': '\\n',
+  '\r': '\\r',
+  '\t': '\\t',
+  '\0': '\\0',
+  '\u2028': '\\u2028',
+  '\u2029': '\\u2029',
+}
+
+function escapeUnsafeCharsForJs(str: string): string {
+  return str.replace(
+    /[<>\/\\\b\f\n\r\t\0\u2028\u2029]/g,
+    (ch) => JS_UNSAFE_CHARS[ch] ?? ch,
+  )
+}
+
 export interface ParsedImportGlob {
   index: number
   globs: string[]
@@ -520,7 +542,9 @@ export async function transformGlobImport(
             let importQuery = options.query ?? ''
 
             if (onlyKeys) {
-              objectProps.push(`${JSON.stringify(filePath)}: 0`)
+              objectProps.push(
+                `${escapeUnsafeCharsForJs(JSON.stringify(filePath))}: 0`,
+              )
               return
             }
 
@@ -543,21 +567,31 @@ export async function transformGlobImport(
                 ? `{ ${importKey} as ${variableName} }`
                 : `* as ${variableName}`
               staticImports.push(
-                `import ${expression} from ${JSON.stringify(importPath)}`,
+                `import ${expression} from ${escapeUnsafeCharsForJs(
+                  JSON.stringify(importPath),
+                )}`,
               )
               objectProps.push(
                 onlyValues
                   ? `${variableName}`
-                  : `${JSON.stringify(filePath)}: ${variableName}`,
+                  : `${escapeUnsafeCharsForJs(
+                      JSON.stringify(filePath),
+                    )}: ${variableName}`,
               )
             } else {
-              let importStatement = `import(${JSON.stringify(importPath)})`
+              let importStatement = `import(${escapeUnsafeCharsForJs(
+                JSON.stringify(importPath),
+              )})`
               if (importKey)
-                importStatement += `.then(m => m[${JSON.stringify(importKey)}])`
+                importStatement += `.then(m => m[${escapeUnsafeCharsForJs(
+                  JSON.stringify(importKey),
+                )}])`
               objectProps.push(
                 onlyValues
                   ? `() => ${importStatement}`
-                  : `${JSON.stringify(filePath)}: () => ${importStatement}`,
+                  : `${escapeUnsafeCharsForJs(
+                      JSON.stringify(filePath),
+                    )}: () => ${importStatement}`,
               )
             }
           })
