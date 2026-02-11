@@ -8,7 +8,9 @@
     "serve": "NODE_ENV=production node server",
     "debug": "node --inspect-brk server"
   },
-  "dependencies": {},
+  "dependencies": {
+    "express-rate-limit": "^8.2.1"
+  },
   "devDependencies": {
     "express": "^5.2.1"
   }
