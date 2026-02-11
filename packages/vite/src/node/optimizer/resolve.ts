@@ -123,7 +123,8 @@ export function expandGlobIds(id: string, config: ResolvedConfig): string[] {
                     }
                   }
                   if (allGlobSame) {
-                    return key.replace('*', matched[1]).slice(2)
+                    // Replace all occurrences of '*' in the export key with the captured value.
+                    return key.replace(/\*/g, matched[1]).slice(2)
                   }
                 }
                 return ''
