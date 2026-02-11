@@ -1101,7 +1101,7 @@ export function extractHostnamesFromSubjectAltName(
       // skip *.IPv4 addresses, which is invalid
       !(value.startsWith('*.') && net.isIPv4(value.slice(2)))
     ) {
-      hostnames.push(value.replace('*', 'vite'))
+      hostnames.push(value.replace(/\*/g, 'vite'))
     }
   }
   return hostnames
