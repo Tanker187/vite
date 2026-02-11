@@ -499,9 +499,9 @@ export function indexHtmlMiddleware(
       if (isDev && url.startsWith(FS_PREFIX)) {
         filePath = decodeURIComponent(fsPathFromId(url))
       } else {
-        filePath = normalizePath(
-          path.resolve(path.join(root, decodeURIComponent(url))),
-        )
+        // Resolve the requested URL path against the configured root directory
+        // and normalize it to an absolute filesystem path.
+        filePath = normalizePath(path.resolve(root, decodeURIComponent(url)))
         try {
           const realFilePath = fs.realpathSync.native(filePath)
           filePath = normalizePath(realFilePath)
