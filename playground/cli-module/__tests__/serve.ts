@@ -2,7 +2,7 @@
 // the default e2e test serve behavior
 
 import { stripVTControlCharacters } from 'node:util'
-import { execaCommand } from 'execa'
+import { execa } from 'execa'
 import kill from 'kill-port'
 import {
   isBuild,
@@ -46,7 +46,7 @@ export async function serve() {
   if (isBuild) {
     const buildCommand = `${viteBinPath} build`
     try {
-      const buildProcess = execaCommand(buildCommand, {
+      const buildProcess = execa(viteBinPath, ['build'], {
         cwd: rootDir,
         stdio: 'pipe',
       })
