@@ -23,6 +23,7 @@ const DYNAMIC_STYLES = `
 
 export async function createServer(root = process.cwd(), hmrPort) {
   const resolve = (p) => path.resolve(import.meta.dirname, p)
+  const HTML_ROOT = resolve('.')
 
   const app = express()
 
@@ -78,7 +79,19 @@ export async function createServer(root = process.cwd(), hmrPort) {
         return next()
       }
 
-      const htmlLoc = resolve(`.${url}`)
+      // Resolve the requested HTML file relative to a fixed root and
+      // ensure that the final path stays within that root.
+      const candidatePath = path.resolve(HTML_ROOT, `.${url}`)
+      let htmlLoc
+      try {
+        htmlLoc = fs.realpathSync(candidatePath)
+      } catch {
+        return res.status(404).end('404')
+      }
+      if (!htmlLoc.startsWith(HTML_ROOT + path.sep) && htmlLoc !== HTML_ROOT) {
+        return res.status(403).end('403')
+      }
+
       let template = fs.readFileSync(htmlLoc, 'utf-8')
 
       template = template.replace(
