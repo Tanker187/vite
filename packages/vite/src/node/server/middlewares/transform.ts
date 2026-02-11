@@ -15,6 +15,7 @@ import {
   prettifyUrl,
   removeImportQuery,
   removeTimestampQuery,
+  isParentDirectory,
 } from '../../utils'
 import { send } from '../send'
 import { ERR_DENIED_ID, ERR_LOAD_URL } from '../transformRequest'
@@ -155,6 +156,16 @@ export function transformMiddleware(
           const sourcemapPath = url.startsWith(FS_PREFIX)
             ? fsPathFromId(url)
             : normalizePath(path.resolve(server.config.root, url.slice(1)))
+          if (!url.startsWith(FS_PREFIX)) {
+            if (!isParentDirectory(server.config.root, sourcemapPath)) {
+              return respondWithAccessDenied(
+                req,
+                res,
+                server.config,
+                sourcemapPath,
+              )
+            }
+          }
           try {
             const map = JSON.parse(
               await fsp.readFile(sourcemapPath, 'utf-8'),
