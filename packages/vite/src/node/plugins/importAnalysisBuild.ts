@@ -33,6 +33,28 @@ export const preloadMarker = `__VITE_PRELOAD__`
 export const preloadHelperId = '\0vite/preload-helper.js'
 const preloadMarkerRE = new RegExp(preloadMarker, 'g')
 
+const unsafeCharMap: Record<string, string> = {
+  '<': '\\u003C',
+  '>': '\\u003E',
+  '/': '\\u002F',
+  '\\': '\\\\',
+  '\b': '\\b',
+  '\f': '\\f',
+  '\n': '\\n',
+  '\r': '\\r',
+  '\t': '\\t',
+  '\0': '\\0',
+  '\u2028': '\\u2028',
+  '\u2029': '\\u2029',
+}
+
+function escapeUnsafeChars(str: string): string {
+  return str.replace(
+    /[<>\/\\\b\f\n\r\t\0\u2028\u2029]/g,
+    (ch) => unsafeCharMap[ch] ?? ch,
+  )
+}
+
 function toRelativePath(filename: string, importer: string) {
   const relPath = path.posix.relative(path.posix.dirname(importer), filename)
   return relPath[0] === '.' ? relPath : `./${relPath}`
@@ -189,7 +211,9 @@ function getPreloadCode(
         `function(dep, importerUrl) { return new URL(dep, importerUrl).href }`
       : // If the base isn't relative, then the deps are relative to the projects `outDir` and the base
         // is appended inside __vitePreload too.
-        `function(dep) { return ${JSON.stringify(environment.config.base)}+dep }`
+        `function(dep) { return ${escapeUnsafeChars(
+          JSON.stringify(environment.config.base),
+        )}+dep }`
   const preloadCode = `const scriptRel = ${scriptRel};const assetsURL = ${assetsURL};const seen = {};export const ${preloadMethod} = ${preload.toString()}`
   return preloadCode
 }
