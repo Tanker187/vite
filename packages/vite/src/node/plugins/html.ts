@@ -1420,12 +1420,61 @@ export async function applyHtmlTransforms(
   return html
 }
 
-const entirelyImportRE =
-  /^(?:import\s*(?:"[^"\n]*[^\\\n]"|'[^'\n]*[^\\\n]');*|\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\/|\/\/[^\n]*[$\n])*$/
 function isEntirelyImport(code: string) {
   // only consider "side-effect" imports, which match <script type=module> semantics exactly
-  // the regexes will remove too little in some exotic cases, but false-negatives are alright
-  return entirelyImportRE.test(code.trim())
+  // the checks below will remove too little in some exotic cases, but false-negatives are alright
+  const trimmed = code.trim()
+  if (!trimmed) return false
+
+  const lines = trimmed.split('\n')
+  let inBlockComment = false
+
+  for (let rawLine of lines) {
+    let line = rawLine
+
+    // Handle block comments spanning multiple lines
+    if (inBlockComment) {
+      const endIndex = line.indexOf('*/')
+      if (endIndex === -1) {
+        continue
+      }
+      line = line.slice(endIndex + 2)
+      inBlockComment = false
+    }
+
+    // Strip leading block comments on this line
+    while (true) {
+      const startIndex = line.indexOf('/*')
+      if (startIndex === -1) break
+      const endIndex = line.indexOf('*/', startIndex + 2)
+      if (endIndex === -1) {
+        inBlockComment = true
+        line = line.slice(0, startIndex)
+        break
+      }
+      line = line.slice(0, startIndex) + line.slice(endIndex + 2)
+    }
+
+    // Strip line comments
+    const lineCommentIndex = line.indexOf('//')
+    if (lineCommentIndex !== -1) {
+      line = line.slice(0, lineCommentIndex)
+    }
+
+    if (!line.trim()) {
+      continue
+    }
+
+    // Heuristically match side-effect only import statements
+    // e.g. import "x"; or import 'x'
+    const sideEffectImportRE =
+      /^\s*import\s*(?:(?:"[^"\n]*"|'[^'\n]*')\s*;?\s*)?$/
+    if (!sideEffectImportRE.test(line)) {
+      return false
+    }
+  }
+
+  return true
 }
 
 function getBaseInHTML(urlRelativePath: string, config: ResolvedConfig) {
