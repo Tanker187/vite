@@ -1998,7 +1998,7 @@ export const importCssRE: RegExp =
   /@import\s+(?:url\()?('[^']+\.css'|"[^"]+\.css"|[^'"\s)]+\.css)/
 // Assuming a function name won't be longer than 256 chars
 // eslint-disable-next-line regexp/no-unused-capturing-group -- doesn't detect asyncReplace usage
-const cssImageSetRE = /(?<=image-set\()((?:[\w-]{1,256}\([^)]*\)|[^)])*)(?=\))/
+const cssImageSetRE = /(?<=image-set\()([^)]*)(?=\))/
 
 const UrlRewritePostcssPlugin: PostCSS.PluginCreator<{
   resolver: CssUrlResolver
