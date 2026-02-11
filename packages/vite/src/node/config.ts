@@ -15,6 +15,10 @@ import {
   type RolldownOptions,
   rolldown,
 } from 'rolldown'
+import type {
+  DevToolsConfig,
+  ResolvedDevToolsConfig,
+} from '@vitejs/devtools/config'
 import type { Alias, AliasOptions } from '#dep-types/alias'
 import type { AnymatchFn } from '../types/anymatch'
 import { withTrailingSlash } from '../shared/utils'
@@ -90,6 +94,7 @@ import {
   nodeLikeBuiltins,
   normalizeAlias,
   normalizePath,
+  resolveHostname,
   setupRollupOptionCompat,
 } from './utils'
 import {
@@ -507,6 +512,13 @@ export interface UserConfig extends DefaultEnvironmentOptions {
    * @default 'spa'
    */
   appType?: AppType
+  /**
+   * Enable devtools integration. Ensure that `@vitejs/devtools` is installed as a dependency.
+   * This feature is currently supported only in build mode.
+   * @experimental
+   * @default false
+   */
+  devtools?: boolean | DevToolsConfig
 }
 
 export interface HTMLOptions {
@@ -556,15 +568,14 @@ export interface ExperimentalOptions {
   /**
    * Enable builtin plugin that written by rust, which is faster than js plugin.
    *
-   * - 'resolver' (deprecated, will be removed in v8 stable): Enable only the native resolver plugin.
-   * - 'v1' (will be deprecated, will be removed in v8 stable): Enable the first stable set of native plugins (including resolver).
+   * - 'v1' (will be deprecated, will be removed in v8 stable): Enable the first stable set of native plugins.
    * - 'v2' (will be deprecated, will be removed in v8 stable): Enable the improved dynamicImportVarsPlugin and importGlobPlugin.
    * - true: Enable all native plugins (currently an alias of 'v2', it will map to a newer one in the future versions).
    *
    * @experimental
    * @default 'v2'
    */
-  enableNativePlugin?: boolean | 'resolver' | 'v1' | 'v2'
+  enableNativePlugin?: boolean | 'v1' | 'v2'
   /**
    * Enable full bundle mode.
    *
@@ -637,6 +648,7 @@ export interface ResolvedConfig extends Readonly<
     | 'future'
     | 'server'
     | 'preview'
+    | 'devtools'
   > & {
     configFile: string | undefined
     configFileDependencies: string[]
@@ -676,6 +688,7 @@ export interface ResolvedConfig extends Readonly<
     /** @experimental */
     builder: ResolvedBuilderOptions | undefined
     build: ResolvedBuildOptions
+    devtools: ResolvedDevToolsConfig
     preview: ResolvedPreviewOptions
     ssr: ResolvedSSROptions
     assetsInclude: (file: string) => boolean
@@ -725,6 +738,38 @@ export interface ResolvedConfig extends Readonly<
     [SYMBOL_RESOLVED_CONFIG]: true
   } & PluginHookUtils
 > {}
+
+export async function resolveDevToolsConfig(
+  config: DevToolsConfig | boolean | undefined,
+  host: string | boolean | undefined,
+  logger: Logger,
+): Promise<ResolvedDevToolsConfig> {
+  const isEnabled = config === true || !!(config && config.enabled)
+  const resolvedHostname = await resolveHostname(host)
+  const fallbackHostname = resolvedHostname.host ?? 'localhost'
+  const fallbackConfig = {
+    config: {
+      host: fallbackHostname,
+    },
+    enabled: false,
+  }
+  if (!isEnabled) {
+    return fallbackConfig
+  }
+
+  try {
+    const { normalizeDevToolsConfig } = await import('@vitejs/devtools/config')
+    return normalizeDevToolsConfig(config, fallbackHostname)
+  } catch (e) {
+    logger.error(
+      colors.red(
+        `Failed to load Vite DevTools config: ${e.message || e.stack}`,
+      ),
+      { error: e },
+    )
+    return fallbackConfig
+  }
+}
 
 // inferred ones are omitted
 const configDefaults = Object.freeze({
@@ -829,6 +874,8 @@ const configDefaults = Object.freeze({
     // entries
     /** @experimental */
     force: false,
+    /** @experimental */
+    ignoreOutdatedRequests: false,
   },
   ssr: ssrConfigDefaults,
   environments: {},
@@ -1095,6 +1142,15 @@ function resolveResolveOptions(
       colors.yellow(
         `\`resolve.alias\` contains an alias that maps \`/\`. ` +
           `This is not recommended as it can cause unexpected behavior when resolving paths.`,
+      ),
+    )
+  }
+  if (alias.some((a) => a.customResolver)) {
+    logger.warn(
+      colors.yellow(
+        `\`resolve.alias\` contains an alias with \`customResolver\` option. ` +
+          `This is deprecated and will be removed in Vite 9. ` +
+          `Please use a custom plugin with a resolveId hook and \`enforce: 'pre'\` instead.`,
       ),
     )
   }
@@ -1812,6 +1868,12 @@ export async function resolveConfig(
     experimental.renderBuiltUrl = undefined
   }
 
+  const resolvedDevToolsConfig = await resolveDevToolsConfig(
+    config.devtools,
+    server.host,
+    logger,
+  )
+
   resolved = {
     configFile: configFile ? normalizePath(configFile) : undefined,
     configFileDependencies: configFileDependencies.map((name) =>
@@ -1899,6 +1961,7 @@ export async function resolveConfig(
     resolve: resolvedDefaultResolve,
     dev: resolvedDevEnvironmentOptions,
     build: resolvedBuildOptions,
+    devtools: resolvedDevToolsConfig,
 
     environments: resolvedEnvironments,
 
@@ -2003,6 +2066,11 @@ export async function resolveConfig(
       resolved.build.ssrEmitAssets || resolved.build.emitAssets
   }
 
+  // Enable `rolldownOptions.devtools` if devtools is enabled
+  if (resolved.devtools.enabled) {
+    resolved.build.rolldownOptions.devtools ??= {}
+  }
+
   applyDepOptimizationOptionCompat(resolved)
   await setOptimizeDepsPluginNames(resolved)
 
@@ -2069,17 +2137,6 @@ assetFileNames isn't equal for every build.rollupOptions.output. A single patter
     )
   }
 
-  if (
-    resolved.resolve.tsconfigPaths &&
-    resolved.experimental.enableNativePlugin === false
-  ) {
-    resolved.logger.warn(
-      colors.yellow(`
-(!) resolve.tsconfigPaths is set to true, but native plugins are disabled. To use resolve.tsconfigPaths, please enable native plugins via experimental.enableNativePlugin.
-`),
-    )
-  }
-
   return resolved
 }
 
@@ -2090,8 +2147,6 @@ function resolveNativePluginEnabledLevel(
   >,
 ) {
   switch (enableNativePlugin) {
-    case 'resolver':
-      return 0
     case 'v1':
       return 1
     case 'v2':
@@ -2305,6 +2360,7 @@ async function bundleConfigFile(
   const importMetaUrlVarName = '__vite_injected_original_import_meta_url'
   const importMetaResolveVarName =
     '__vite_injected_original_import_meta_resolve'
+  const importMetaResolveRegex = /import\.meta\s*\.\s*resolve/
 
   const bundle = await rolldown({
     input: fileName,
@@ -2326,6 +2382,9 @@ async function bundleConfigFile(
     },
     // disable treeshake to include files that is not sideeffectful to `moduleIds`
     treeshake: false,
+    // disable tsconfig as it's confusing to respect tsconfig options in the config file
+    // this also aligns with other config loader behaviors
+    tsconfig: false,
     plugins: [
       {
         name: 'externalize-deps',
@@ -2385,18 +2444,18 @@ async function bundleConfigFile(
         name: 'inject-file-scope-variables',
         transform: {
           filter: { id: /\.[cm]?[jt]s$/ },
-          async handler(code, id) {
+          handler(code, id) {
             let injectValues =
               `const ${dirnameVarName} = ${JSON.stringify(path.dirname(id))};` +
               `const ${filenameVarName} = ${JSON.stringify(id)};` +
               `const ${importMetaUrlVarName} = ${JSON.stringify(
                 pathToFileURL(id).href,
               )};`
-            if (code.includes('import.meta.resolve')) {
+            if (importMetaResolveRegex.test(code)) {
               if (isESM) {
                 if (!importMetaResolverRegistered) {
                   importMetaResolverRegistered = true
-                  await createImportMetaResolver()
+                  createImportMetaResolver()
                 }
                 injectValues += `const ${importMetaResolveVarName} = (specifier, importer = ${importMetaUrlVarName}) => (${importMetaResolveWithCustomHookString})(specifier, importer);`
               } else {
@@ -2433,7 +2492,7 @@ async function bundleConfigFile(
       return path.resolve(fileName, relative)
     },
     // we want to generate a single chunk like esbuild does with `splitting: false`
-    inlineDynamicImports: true,
+    codeSplitting: false,
   })
   await bundle.close()
 
@@ -2449,7 +2508,8 @@ async function bundleConfigFile(
 
   return {
     code: entryChunk.code,
-    dependencies: [...allModules],
+    // exclude `\x00rolldown/runtime.js`
+    dependencies: [...allModules].filter((m) => !m.startsWith('\0')),
   }
 }
 
