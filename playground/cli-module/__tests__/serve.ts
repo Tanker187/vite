@@ -2,7 +2,7 @@
 // the default e2e test serve behavior
 
 import { stripVTControlCharacters } from 'node:util'
-import { execaCommand } from 'execa'
+import { execa, execaCommand } from 'execa'
 import kill from 'kill-port'
 import {
   isBuild,
@@ -44,16 +44,19 @@ export async function serve() {
 
   // only run `vite build` when needed
   if (isBuild) {
-    const buildCommand = `${viteBinPath} build`
+    const buildArgs = ['build']
     try {
-      const buildProcess = execaCommand(buildCommand, {
+      const buildProcess = execa(viteBinPath, buildArgs, {
         cwd: rootDir,
         stdio: 'pipe',
       })
       collectStreams('build', buildProcess)
       await buildProcess
     } catch (e) {
-      console.error(`error while executing cli command "${buildCommand}":`, e)
+      console.error(
+        `error while executing cli command "${[viteBinPath, ...buildArgs].join(' ')}":`,
+        e,
+      )
       collectErrorStreams('build', e)
       await printStreamsToConsole('build')
       throw e
@@ -67,8 +70,7 @@ export async function serve() {
   if (isBuild) {
     viteServerArgs.unshift('preview')
   }
-  const serverCommand = `${viteBinPath} ${viteServerArgs.join(' ')}`
-  const serverProcess = execaCommand(serverCommand, {
+  const serverProcess = execa(viteBinPath, viteServerArgs, {
     cwd: rootDir,
     stdio: 'pipe',
     forceKillAfterDelay: 3000,
@@ -86,7 +88,7 @@ export async function serve() {
         if (e === timeoutError || (!serverProcess.killed && !isWindows)) {
           collectErrorStreams('server', e)
           console.error(
-            `error while killing cli command "${serverCommand}":`,
+            `error while killing cli command "${[viteBinPath, ...viteServerArgs].join(' ')}":`,
             e,
           )
           await printStreamsToConsole('server')
