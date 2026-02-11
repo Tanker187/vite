@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@vitejs/test-ssr-conditions-external": "file:./external",
-    "@vitejs/test-ssr-conditions-no-external": "file:./no-external"
+    "@vitejs/test-ssr-conditions-no-external": "file:./no-external",
+    "express-rate-limit": "^8.2.1"
   },
   "devDependencies": {
     "express": "^5.2.1",
