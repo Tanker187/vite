@@ -31,7 +31,8 @@
     "@vitejs/test-primitive-export": "file:./primitive-export",
     "@vitejs/test-read-file-content": "file:./read-file-content",
     "@vitejs/test-require-absolute": "file:./require-absolute",
-    "@vitejs/test-ts-transpiled-exports": "file:./ts-transpiled-exports"
+    "@vitejs/test-ts-transpiled-exports": "file:./ts-transpiled-exports",
+    "express-rate-limit": "^8.2.1"
   },
   "devDependencies": {
     "express": "^5.2.1"
