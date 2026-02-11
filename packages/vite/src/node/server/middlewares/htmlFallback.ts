@@ -14,6 +14,9 @@ export function htmlFallbackMiddleware(
   clientEnvironment?: DevEnvironment,
 ): Connect.NextHandleFunction {
   const normalizedRoot = path.resolve(root)
+  const realRoot =
+    fs.realpathSync.native?.(normalizedRoot) ?? fs.realpathSync(normalizedRoot)
+  const realRootWithSep = realRoot + path.sep
   const memoryFiles =
     clientEnvironment instanceof FullBundleDevEnvironment
       ? clientEnvironment.memoryFiles
@@ -25,9 +28,20 @@ export function htmlFallbackMiddleware(
       normalizedRoot,
       '.' + relativePath,
     )
+
+    let realCandidatePath: string
+    try {
+      realCandidatePath =
+        fs.realpathSync.native?.(candidatePath) ??
+        fs.realpathSync(candidatePath)
+    } catch {
+      // If the path does not exist yet or cannot be resolved, treat it as missing
+      return false
+    }
+
     if (
-      candidatePath !== normalizedRoot &&
-      !candidatePath.startsWith(normalizedRoot + path.sep)
+      realCandidatePath !== realRoot &&
+      !realCandidatePath.startsWith(realRootWithSep)
     ) {
       return false
     }
@@ -35,7 +49,7 @@ export function htmlFallbackMiddleware(
     return (
       memoryFiles?.has(
         relativePath.slice(1), // remove first /
-      ) ?? fs.existsSync(candidatePath)
+      ) ?? fs.existsSync(realCandidatePath)
     )
   }
 
