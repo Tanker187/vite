@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import express from 'express'
+import rateLimit from 'express-rate-limit'
 
 const isTest = process.env.VITEST
 
@@ -16,6 +17,11 @@ export async function createServer(
     : ''
 
   const app = express()
+
+  const requestLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+  })
 
   /**
    * @type {import('vite').ViteDevServer}
@@ -44,7 +50,7 @@ export async function createServer(
     app.use(vite.middlewares)
   }
 
-  app.use('*all', async (req, res) => {
+  app.use('*all', requestLimiter, async (req, res) => {
     try {
       const url = req.originalUrl
 
