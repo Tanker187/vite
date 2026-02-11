@@ -49,6 +49,7 @@ import type { PreviewServer } from './preview'
 import { type PackageCache, findNearestPackageData } from './packages'
 import type { BuildEnvironmentOptions } from './build'
 import type { CommonServerOptions } from '.'
+import { urlRE } from './server/middlewares/static'
 
 /**
  * Inlined to keep `@rollup/pluginutils` in devDependencies
@@ -566,6 +567,15 @@ export function generateCodeFrame(
 }
 
 export function isFileReadable(filename: string): boolean {
+  // Best-effort guard: avoid treating raw URLs or traversal-heavy inputs as filesystem paths.
+  const cleaned = cleanUrl(filename)
+  const normalized = normalizePath(cleaned)
+
+  // If this looks like a URL, or contains parent-directory segments, treat it as not readable.
+  if (urlRE.test(normalized) || normalized.split('/').includes('..')) {
+    return false
+  }
+
   if (!tryStatSync(filename)) {
     return false
   }
