@@ -25,6 +25,28 @@ import type { Logger } from '../logger'
 import { slash } from '../../shared/utils'
 import type { Environment } from '../environment'
 
+const __importGlobUnsafeCharMap: Record<string, string> = {
+  '<': '\\u003C',
+  '>': '\\u003E',
+  '/': '\\u002F',
+  '\\': '\\\\',
+  '\b': '\\b',
+  '\f': '\\f',
+  '\n': '\\n',
+  '\r': '\\r',
+  '\t': '\\t',
+  '\0': '\\0',
+  '\u2028': '\\u2028',
+  '\u2029': '\\u2029',
+}
+
+function escapeUnsafeChars(str: string): string {
+  return str.replace(
+    /[<>/\\\b\f\n\r\t\0\u2028\u2029]/g,
+    (ch) => __importGlobUnsafeCharMap[ch] ?? ch,
+  )
+}
+
 export interface ParsedImportGlob {
   index: number
   globs: string[]
@@ -551,9 +573,13 @@ export async function transformGlobImport(
                   : `${JSON.stringify(filePath)}: ${variableName}`,
               )
             } else {
-              let importStatement = `import(${JSON.stringify(importPath)})`
+              let importStatement = `import(${escapeUnsafeChars(
+                JSON.stringify(importPath),
+              )})`
               if (importKey)
-                importStatement += `.then(m => m[${JSON.stringify(importKey)}])`
+                importStatement += `.then(m => m[${escapeUnsafeChars(
+                  JSON.stringify(importKey),
+                )}])`
               objectProps.push(
                 onlyValues
                   ? `() => ${importStatement}`
