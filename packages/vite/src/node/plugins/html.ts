@@ -1421,7 +1421,7 @@ export async function applyHtmlTransforms(
 }
 
 const entirelyImportRE =
-  /^(?:import\s*(?:"[^"\n]*[^\\\n]"|'[^'\n]*[^\\\n]');*|\/\*[\s\S]*?\*\/|\/\/[^\n]*[$\n])*$/
+  /^(?:import\s*(?:"[^"\n]*[^\\\n]"|'[^'\n]*[^\\\n]');*|\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\/|\/\/[^\n]*[$\n])*$/
 function isEntirelyImport(code: string) {
   // only consider "side-effect" imports, which match <script type=module> semantics exactly
   // the regexes will remove too little in some exotic cases, but false-negatives are alright
