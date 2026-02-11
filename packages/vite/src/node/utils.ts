@@ -1200,6 +1200,10 @@ function mergeWithDefaultsRecursively<
 >(defaults: D, values: V): MergeWithDefaultsResult<D, V> {
   const merged: Record<string, any> = defaults
   for (const key in values) {
+    // Prevent prototype pollution by blocking dangerous keys
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      continue
+    }
     const value = values[key]
     // let null to set the value (e.g. `server.watch: null`)
     if (value === undefined) continue
