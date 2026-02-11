@@ -15,6 +15,7 @@ const DYNAMIC_STYLES = `
 
 export async function createServer(root = process.cwd(), hmrPort) {
   const resolve = (p) => path.resolve(import.meta.dirname, p)
+  const htmlRoot = root
 
   const app = express()
 
@@ -55,7 +56,17 @@ export async function createServer(root = process.cwd(), hmrPort) {
         return res.status(404).end('404')
       }
 
-      const htmlLoc = resolve(`.${url}`)
+      const requestedPath = '.' + url
+      let htmlLoc = path.resolve(htmlRoot, requestedPath)
+      try {
+        htmlLoc = fs.realpathSync(htmlLoc)
+      } catch {
+        return res.status(404).end('404')
+      }
+      if (!htmlLoc.startsWith(htmlRoot)) {
+        return res.status(403).end('Forbidden')
+      }
+
       let template = fs.readFileSync(htmlLoc, 'utf-8')
 
       template = template.replace('<!--[inline-css]-->', DYNAMIC_STYLES)
