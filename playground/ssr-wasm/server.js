@@ -44,7 +44,7 @@ export async function createServer(root = process.cwd(), hmrPort) {
       vite?.ssrFixStacktrace(e)
       if (isTest) throw e
       console.log(e.stack)
-      res.status(500).end(e.stack)
+      res.status(500).end('Internal Server Error')
     }
   })
 
