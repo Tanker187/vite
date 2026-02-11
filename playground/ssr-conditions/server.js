@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import express from 'express'
 import sirv from 'sirv'
+import rateLimit from 'express-rate-limit'
 
 const isTest = process.env.VITEST
 
@@ -17,6 +18,13 @@ export async function createServer(
     : ''
 
   const app = express()
+
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+  })
+
+  app.use(limiter)
 
   /**
    * @type {import('vite').ViteDevServer}
