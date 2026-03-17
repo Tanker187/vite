@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import express from 'express'
+import RateLimit from 'express-rate-limit'
 
 const isTest = process.env.VITEST
 
@@ -15,8 +16,14 @@ const DYNAMIC_STYLES = `
 
 export async function createServer(root = process.cwd(), hmrPort) {
   const resolve = (p) => path.resolve(import.meta.dirname, p)
+  const htmlRoot = root
 
   const app = express()
+
+  const limiter = RateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+  })
 
   /**
    * @type {import('vite').ViteDevServer}
@@ -46,6 +53,8 @@ export async function createServer(root = process.cwd(), hmrPort) {
   // use vite's connect instance as middleware
   app.use(vite.middlewares)
 
+  app.use(limiter)
+
   app.use('*all', async (req, res, next) => {
     try {
       let [url] = req.originalUrl.split('?')
@@ -55,7 +64,17 @@ export async function createServer(root = process.cwd(), hmrPort) {
         return res.status(404).end('404')
       }
 
-      const htmlLoc = resolve(`.${url}`)
+      const requestedPath = '.' + url
+      let htmlLoc = path.resolve(htmlRoot, requestedPath)
+      try {
+        htmlLoc = fs.realpathSync(htmlLoc)
+      } catch {
+        return res.status(404).end('404')
+      }
+      if (!htmlLoc.startsWith(htmlRoot)) {
+        return res.status(403).end('Forbidden')
+      }
+
       let template = fs.readFileSync(htmlLoc, 'utf-8')
 
       template = template.replace('<!--[inline-css]-->', DYNAMIC_STYLES)
