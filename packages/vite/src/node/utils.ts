@@ -1103,7 +1103,7 @@ export function extractHostnamesFromSubjectAltName(
       // skip *.IPv4 addresses, which is invalid
       !(value.startsWith('*.') && net.isIPv4(value.slice(2)))
     ) {
-      hostnames.push(value.replace('*', 'vite'))
+      hostnames.push(value.replace(/\*/g, 'vite'))
     }
   }
   return hostnames
@@ -1150,6 +1150,11 @@ type DeepWritable<T> =
         ? T
         : { -readonly [P in keyof T]: DeepWritable<T[P]> }
 
+function isUnsafeKey(key: string): boolean {
+  // Prevent prototype pollution by blocking special property names
+  return key === '__proto__' || key === 'constructor' || key === 'prototype'
+}
+
 export function deepClone<T>(value: T): DeepWritable<T> {
   if (Array.isArray(value)) {
     return value.map((v) => deepClone(v)) as DeepWritable<T>
@@ -1157,7 +1162,8 @@ export function deepClone<T>(value: T): DeepWritable<T> {
   if (isObject(value)) {
     const cloned: Record<string, any> = {}
     for (const key in value) {
-      cloned[key] = deepClone(value[key])
+      if (isUnsafeKey(key)) continue
+      cloned[key] = deepClone((value as Record<string, any>)[key])
     }
     return cloned as DeepWritable<T>
   }
@@ -1202,7 +1208,8 @@ function mergeWithDefaultsRecursively<
 >(defaults: D, values: V): MergeWithDefaultsResult<D, V> {
   const merged: Record<string, any> = defaults
   for (const key in values) {
-    const value = values[key]
+    if (isUnsafeKey(key)) continue
+    const value = (values as Record<string, any>)[key]
     // let null to set the value (e.g. `server.watch: null`)
     if (value === undefined) continue
 
