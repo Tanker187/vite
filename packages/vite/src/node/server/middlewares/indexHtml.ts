@@ -502,6 +502,17 @@ export function indexHtmlMiddleware(
         filePath = normalizePath(
           path.resolve(path.join(root, decodeURIComponent(url))),
         )
+        try {
+          const realFilePath = fs.realpathSync.native(filePath)
+          filePath = normalizePath(realFilePath)
+        } catch {
+          // If the path does not exist or cannot be resolved, fall through to the normal
+          // existence checks below, which will treat it as not found.
+        }
+        // Ensure the resolved path stays within the configured root directory.
+        if (!isParentDirectory(root, filePath)) {
+          return next()
+        }
       }
 
       if (isDev) {

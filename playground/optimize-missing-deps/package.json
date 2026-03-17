@@ -7,7 +7,8 @@
     "dev": "node server"
   },
   "dependencies": {
-    "@vitejs/test-missing-dep": "file:./missing-dep"
+    "@vitejs/test-missing-dep": "file:./missing-dep",
+    "express-rate-limit": "^8.2.1"
   },
   "devDependencies": {
     "express": "^5.2.1"

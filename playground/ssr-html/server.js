@@ -94,8 +94,8 @@ export async function createServer(root = process.cwd(), hmrPort) {
       res.status(200).set({ 'Content-Type': 'text/html' }).end(html)
     } catch (e) {
       vite && vite.ssrFixStacktrace(e)
-      console.log(e.stack)
-      res.status(500).end(e.stack)
+      console.error(e && e.stack ? e.stack : e)
+      res.status(500).end('Internal Server Error')
     }
   })
 
