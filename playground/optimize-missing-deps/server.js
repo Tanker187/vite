@@ -2,6 +2,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import express from 'express'
+import rateLimit from 'express-rate-limit'
 
 const isTest = process.env.VITEST
 
@@ -9,6 +10,10 @@ export async function createServer(root = process.cwd(), hmrPort) {
   const resolve = (p) => path.resolve(import.meta.dirname, p)
 
   const app = express()
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+  })
 
   /**
    * @type {import('vite').ViteDevServer}
@@ -28,7 +33,7 @@ export async function createServer(root = process.cwd(), hmrPort) {
   })
   app.use(vite.middlewares)
 
-  app.use('*all', async (req, res) => {
+  app.use('*all', limiter, async (req, res) => {
     try {
       let template = fs.readFileSync(resolve('index.html'), 'utf-8')
       template = await vite.transformIndexHtml(req.originalUrl, template)
