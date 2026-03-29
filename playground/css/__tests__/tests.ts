@@ -381,7 +381,7 @@ export const tests = (isLightningCSS: boolean) => {
         editFile('imported.css', (code) => code.replace(cases[i - 1], c))
 
       expect(await getBg(urlSeparated)).toMatch(
-        /^url\(.+\)(?:\s*,\s*url\(.+\))*$/,
+        /^url\([^)]*\)(?:\s*,\s*url\([^)]*\))*$/,
       )
     }
   })
