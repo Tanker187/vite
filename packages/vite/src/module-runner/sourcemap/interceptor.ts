@@ -307,11 +307,7 @@ function CallSiteToString(this: CallSite) {
         line += `${typeName}.`
 
       line += functionName
-      if (
-        methodName &&
-        functionName.indexOf(`.${methodName}`) !==
-          functionName.length - methodName.length - 1
-      )
+      if (methodName && !functionName.endsWith(`.${methodName}`))
         line += ` [as ${methodName}]`
     } else {
       line += `${typeName}.${methodName || '<anonymous>'}`
