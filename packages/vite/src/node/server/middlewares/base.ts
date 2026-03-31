@@ -2,6 +2,15 @@ import type { Connect } from '#dep-types/connect'
 import { joinUrlSegments, stripBase } from '../../utils'
 import { cleanUrl, withTrailingSlash } from '../../../shared/utils'
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 // this middleware is only active when (base !== '/')
 
 export function baseMiddleware(
@@ -42,9 +51,10 @@ export function baseMiddleware(
       res.writeHead(404, {
         'Content-Type': 'text/html',
       })
+      const safeRedirectPath = escapeHtml(redirectPath)
       res.end(
         `The server is configured with a public base URL of ${base} - ` +
-          `did you mean to visit <a href="${redirectPath}">${redirectPath}</a> instead?`,
+          `did you mean to visit <a href="${safeRedirectPath}">${safeRedirectPath}</a> instead?`,
       )
       return
     } else {
